@@ -1,3 +1,4 @@
+#!/bin/bash
 PYTHON=$(uv python find)
 #sync with origin main
 git checkout main
