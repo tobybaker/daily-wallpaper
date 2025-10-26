@@ -12,6 +12,28 @@ class Circle:
     radius: int
     color: tuple
 
+class ColorPalleteGenerator:
+    def __init__(self, rng):
+        self.rng = rng
+
+    def generate_color_pallete(self,lightness_range:tuple=(0.3,0.7),saturation_range:tuple=(0.4,1.0),n_color_range:tuple=(3,25)) -> list[tuple]:
+        num_colors: int = int(self.rng.integers(*n_color_range))
+        colors: list[tuple] = []
+
+        for _ in range(num_colors):
+            lightness: float = self.rng.uniform(*lightness_range)
+            saturation: float = self.rng.uniform(*saturation_range)
+            color: Color = Color("hsl", [
+                int(self.rng.integers(0, 360)),
+                saturation,
+                lightness
+            ]).convert("srgb").coords()
+            color: tuple = tuple(int(c * 255) for c in color)
+
+            colors.append(color)
+
+        return colors
+
 class ImageGenerator:
     #CONSTANTS
     IMAGE_WIDTH:int = 1080
@@ -28,6 +50,7 @@ class ImageGenerator:
         self.width = width
         self.height = height
         self.RNG = np.random.default_rng()
+        self.color_pallete_generator = ColorPalleteGenerator(self.RNG)
         
 
     def get_radius_range(self, generate_index: int, num_circles: int):
@@ -39,57 +62,44 @@ class ImageGenerator:
 
     def check_for_overlap_same_color(self,test_circle:Circle,circles:list[Circle]) -> bool:
         for circle in circles:
-            dist_sq: int = (test_circle.x - circle.x) ** 2 + (test_circle.y - circle.y) ** 2
+            distance_squared: int = (test_circle.x - circle.x) ** 2 + (test_circle.y - circle.y) ** 2
             radius_sum: int = test_circle.radius + circle.radius
-            if dist_sq < radius_sum ** 2 and test_circle.color == circle.color:
+            if distance_squared < radius_sum ** 2 and test_circle.color == circle.color:
                 return True
         return False
 
+    def get_new_circle(self,generate_index:int,num_circles:int,color_pallete:list[tuple]) -> Circle:
+        min_radius, max_radius = self.get_radius_range(generate_index, num_circles)
+        radius: int = int(self.RNG.integers(min_radius, max_radius))
+        x: int = self.RNG.integers(0, self.width)
+        y: int = self.RNG.integers(0, self.height)
+        color: tuple  = color_pallete[self.RNG.integers(0, len(color_pallete))]
+        return Circle(x=x, y=y, radius=radius, color=color)
+    
     def generate_circle_data(self, num_circles:int, color_pallete:list[tuple]) -> list[Circle]:
         circles: list[Circle] = []
         generate_index: int =0
-        attempts: int =0
+        
         max_attempts: int = self.MAX_PLACEMENT_ATTEMPTS
         
-        for _ in range(num_circles):
-            attempts += 1
-            x: int = self.RNG.integers(0, self.width)
-            y: int = self.RNG.integers(0, self.height)
-
-            min_radius, max_radius = self.get_radius_range(generate_index, num_circles)
-            radius: int = int(self.RNG.integers(min_radius, max_radius))
-            color: tuple  = color_pallete[self.RNG.integers(0, len(color_pallete))]
-            new_circle = Circle(x=x, y=y, radius=radius, color=color)
-
-            if self.check_for_overlap_same_color(new_circle, circles):
-                if attempts >= max_attempts:
-                    generate_index += 1
-                    attempts = 0
-                continue
-            generate_index += 1
+        for generate_index in range(num_circles):
+            placement_attempts:int =0
+            while placement_attempts < max_attempts:
+                new_circle = self.get_new_circle(generate_index, num_circles, color_pallete)
+                placement_attempts += 1
+                if self.check_for_overlap_same_color(new_circle, circles):
+                    if placement_attempts >= max_attempts:
+                        break
+                    continue
             circles.append(new_circle)
         return circles
-    def generate_color_pallete(self,lightness_range:tuple=(0.3,0.7),saturation_range:tuple=(0.4,1.0),n_color_range:tuple=(3,25)) -> list[tuple]:
-        num_colors: int = int(self.RNG.integers(*n_color_range))
-        colors: list[tuple] = []
-        for _ in range(num_colors):
-            lightness: float = self.RNG.uniform(*lightness_range)
-            saturation: float = self.RNG.uniform(*saturation_range)
-            color: Color = Color("hsl", [
-                int(self.RNG.integers(0, 360)),
-                saturation,
-                lightness
-            ]).convert("srgb").coords()
-            color: tuple = tuple(int(c * 255) for c in color)
-
-            colors.append(color)
-        
-        return colors
+    
+    
     def create_image(self):
         image = Image.new("RGB", (self.width, self.height), self.BACKGROUND_COLOR)
 
-        color_pallete    = self.generate_color_pallete()
-        circle_data = self.generate_circle_data(num_circles=self.MAX_CIRCLE_COUNT,color_pallete=color_pallete)
+        color_pallete = self.color_pallete_generator.generate_color_pallete()
+        circle_data = self.generate_circle_data(num_circles=self.MAX_CIRCLE_COUNT, color_pallete=color_pallete)
 
         draw = ImageDraw.Draw(image)
         for circle in circle_data:
