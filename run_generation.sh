@@ -3,8 +3,8 @@ PYTHON=$(uv python find)
 git checkout main
 git pull origin main
 
-$PYTHON move_images.py
-$PYTHON main.py
+$PYTHON ./move_images.py
+$PYTHON ./main.py
 git add images/archive/*.png
 git add images/current/generated_image.png
 
