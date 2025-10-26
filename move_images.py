@@ -14,3 +14,4 @@ if __name__ == "__main__":
     if image_path.exists():
         new_image_path = archive_dir / f"generated_image_{timestamp}.png"
         image_path.rename(new_image_path)
+        
