@@ -161,7 +161,7 @@ class CircleGenerator:
     DEFAULT_BASE_RADIUS: float = 5.0
     VARIANCE_RADIUS = 0.25
     MAX_CIRCLE_COUNT = 3000
-    MAX_PLACEMENT_ATTEMPTS = 10
+    MAX_PLACEMENT_ATTEMPTS = 50
 
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
         self.RNG = rng
