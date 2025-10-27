@@ -81,7 +81,7 @@ class SeedGenerator:
 
 class ColorPaletteGenerator:
     MIN_COLORS: int = 3
-    MAX_COLORS: int = 25
+    MAX_COLORS: int = 8
 
     MIN_LIGHTNESS: float = 0.2
     MAX_LIGHTNESS: float = 0.8
@@ -157,11 +157,11 @@ class ImageRenderer:
 
 
 class CircleGenerator:
-    DEFAULT_MID_RADIUS: float = 100.0
-    DEFAULT_BASE_RADIUS: float = 5.0
+    DEFAULT_MID_RADIUS: float = 80.0
+    DEFAULT_BASE_RADIUS: float = 3.0
     VARIANCE_RADIUS = 0.25
     MAX_CIRCLE_COUNT = 3000
-    MAX_PLACEMENT_ATTEMPTS = 50
+    MAX_PLACEMENT_ATTEMPTS = 250
 
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
         self.RNG = rng
