@@ -79,20 +79,21 @@ class SeedGenerator:
         return int(np.random.SeedSequence().entropy) % np.iinfo(np.uint32).max
 
 
-
 class ColorPaletteGenerator:
     MIN_COLORS: int = 3
     MAX_COLORS: int = 25
 
-    MIN_LIGHTNESS: float = 0.3
-    MAX_LIGHTNESS: float = 0.7
-    MIN_SATURATION: float = 0.4
-    MAX_SATURATION: float = 1.0
+    MIN_LIGHTNESS: float = 0.2
+    MAX_LIGHTNESS: float = 0.8
+    MIN_SATURATION: float = 0.3
+    MAX_SATURATION: float = 0.9
 
     def __init__(self, rng):
         self.rng = rng
 
     def generate_weights(self, num_colors: int) -> list[float]:
+        """Generates a list of weights for the colors in the palette.
+        Sampling on simplex"""
         weights = self.rng.normal(size=num_colors)
         weights = np.power(weights, 2)
         weights /= np.sum(weights)
@@ -116,7 +117,7 @@ class ColorPaletteGenerator:
             colors.append(rgb_tuple)
         weights = self.generate_weights(num_colors)
         color_palette = ColorPalette(colors=colors, weights=weights)
-        
+
         return color_palette
 
 
@@ -187,7 +188,9 @@ class CircleGenerator:
                 return True
         return False
 
-    def get_new_circle(self, generate_index: int, color_palette: ColorPalette) -> Circle:
+    def get_new_circle(
+        self, generate_index: int, color_palette: ColorPalette
+    ) -> Circle:
         min_radius, max_radius = self.get_radius_range(generate_index)
         radius: int = int(self.RNG.integers(min_radius, max_radius))
         x: int = int(self.RNG.integers(0, self.config.width))
