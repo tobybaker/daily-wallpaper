@@ -10,3 +10,4 @@ wheels/
 .venv
 #Any DS_Store files
 .DS_Store
+images/

@@ -5,4 +5,4 @@ Image generation is randomly seeded based on the BBC website.
 
 An example output image looks like this:
 
-<img src="images/current/generated_image.png" alt="Example Wallpaper" width="200"/>
+<img src="https://res.cloudinary.com/dhco9jghq/image/upload/hourly-wallpaper.png" alt="Example Wallpaper" width="200"/>
