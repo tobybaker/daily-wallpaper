@@ -11,13 +11,14 @@ from hashlib import md5
 class Circle:
     """
     Represents a circle with position, size, and color.
-    
+
     Attributes:
         x: X-coordinate of the circle's center
         y: Y-coordinate of the circle's center
         radius: Radius of the circle in pixels
         color: RGB color tuple (r, g, b) with values 0-255
     """
+
     x: int
     y: int
     radius: int
@@ -33,12 +34,13 @@ class Circle:
 class ImageConfig:
     """
     Configuration settings for image generation.
-    
+
     Attributes:
         width: Width of the generated image in pixels
         height: Height of the generated image in pixels
         background_color: RGB background color tuple (r, g, b)
     """
+
     width: int = 1080
     height: int = 2400
     background_color: tuple = (240, 240, 240)  # Light gray
@@ -50,6 +52,12 @@ class ImageConfig:
         )
 
 
+@dataclass
+class ColorPalette:
+    colors: list[tuple]
+    weights: list[float]
+
+
 class SeedGenerator:
     # uses requests to get random seed from md5 of bbc
     SEED_IMG_URL: str = "https://www.bbc.co.uk/news"
@@ -59,15 +67,17 @@ class SeedGenerator:
             return self.fetch_seed_from_web()
         except requests.RequestException:
             return self.fetch_seed_backup()
-        
+
     def fetch_seed_from_web(self) -> int:
         response = requests.get(self.SEED_IMG_URL)
         response.raise_for_status()
 
         content_hash = md5(response.content).hexdigest()
         return int(content_hash, 16) % np.iinfo(np.uint32).max
+
     def fetch_seed_backup(self) -> int:
         return int(np.random.SeedSequence().entropy) % np.iinfo(np.uint32).max
+
 
 
 class ColorPaletteGenerator:
@@ -82,7 +92,13 @@ class ColorPaletteGenerator:
     def __init__(self, rng):
         self.rng = rng
 
-    def generate(self) -> list[tuple]:
+    def generate_weights(self, num_colors: int) -> list[float]:
+        weights = self.rng.normal(size=num_colors)
+        weights = np.power(weights, 2)
+        weights /= np.sum(weights)
+        return weights.tolist()
+
+    def generate(self) -> ColorPalette:
         num_colors: int = int(self.rng.integers(self.MIN_COLORS, self.MAX_COLORS))
         colors: list[tuple] = []
 
@@ -98,8 +114,10 @@ class ColorPaletteGenerator:
             rgb_coords = hsl_color.convert("srgb").coords()
             rgb_tuple = tuple(int(c * 255) for c in rgb_coords)
             colors.append(rgb_tuple)
-
-        return colors
+        weights = self.generate_weights(num_colors)
+        color_palette = ColorPalette(colors=colors, weights=weights)
+        
+        return color_palette
 
 
 class ArtworkGenerator:
@@ -147,7 +165,6 @@ class CircleGenerator:
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
         self.RNG = rng
         self.config = config
-        
 
     def get_radius_range(self, generate_index: int) -> tuple[int, int]:
         mid_radius: float = (
@@ -170,16 +187,19 @@ class CircleGenerator:
                 return True
         return False
 
-    def get_new_circle(self, generate_index: int, color_palette: list[tuple]) -> Circle:
+    def get_new_circle(self, generate_index: int, color_palette: ColorPalette) -> Circle:
         min_radius, max_radius = self.get_radius_range(generate_index)
         radius: int = int(self.RNG.integers(min_radius, max_radius))
         x: int = int(self.RNG.integers(0, self.config.width))
         y: int = int(self.RNG.integers(0, self.config.height))
-        color: tuple = color_palette[self.RNG.integers(0, len(color_palette))]
+        color_index = self.RNG.choice(
+            len(color_palette.colors), p=color_palette.weights
+        )
+        color = color_palette.colors[color_index]
         return Circle(x=x, y=y, radius=radius, color=color)
 
     def _try_place_circle(
-        self, generate_index: int, circles: list[Circle], color_palette: list[tuple]
+        self, generate_index: int, circles: list[Circle], color_palette: ColorPalette
     ) -> Circle | None:
         placement_attempts: int = 0
         while placement_attempts < self.MAX_PLACEMENT_ATTEMPTS:
@@ -189,7 +209,7 @@ class CircleGenerator:
                 return new_circle
         return None
 
-    def generate(self, color_palette: list[tuple]) -> list[Circle]:
+    def generate(self, color_palette: ColorPalette) -> list[Circle]:
         circles: list[Circle] = []
         for generate_index in range(self.MAX_CIRCLE_COUNT):
             placed_circle = self._try_place_circle(
