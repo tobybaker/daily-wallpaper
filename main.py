@@ -228,7 +228,7 @@ def main():
 
     image_generator = ArtworkGenerator()
     image: Image.Image = image_generator.generate()
-    output_path = output_dir / "generated_image.png"
+    output_path = output_dir / "daily_generated_wallpaper.png"
     output_dir.mkdir(parents=True, exist_ok=True)
     image.save(output_path)
 
