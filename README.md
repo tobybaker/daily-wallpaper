@@ -4,4 +4,4 @@ This script generates a daily wallpaper image composed of randomly placed colore
 Image generation is randomly seeded based on the BBC website.
 
 An example output image looks like this:
-<img src="images/current/generated_image.png" alt="Example Wallpaper" width="100"/>
+<img src="images/current/generated_image.png" alt="Example Wallpaper" width="200"/>
