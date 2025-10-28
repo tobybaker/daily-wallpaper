@@ -73,6 +73,7 @@ class SeedGenerator:
         response.raise_for_status()
 
         content_hash = md5(response.content).hexdigest()
+        
         return int(content_hash, 16) % np.iinfo(np.uint32).max
 
     def fetch_seed_backup(self) -> int:
@@ -80,13 +81,13 @@ class SeedGenerator:
 
 
 class ColorPaletteGenerator:
-    MIN_COLORS: int = 3
-    MAX_COLORS: int = 8
+    MIN_COLORS: int = 4
+    MAX_COLORS: int = 10
 
-    MIN_LIGHTNESS: float = 0.2
-    MAX_LIGHTNESS: float = 0.8
-    MIN_SATURATION: float = 0.3
-    MAX_SATURATION: float = 0.9
+    MIN_LIGHTNESS: float = 0.4
+    MAX_LIGHTNESS: float = 0.6
+    MIN_SATURATION: float = 0.4
+    MAX_SATURATION: float = 1.0
 
     def __init__(self, rng):
         self.rng = rng
@@ -109,7 +110,7 @@ class ColorPaletteGenerator:
                 self.MIN_SATURATION, self.MAX_SATURATION
             )
             hsl_color: Color = Color(
-                "hsl", [int(self.rng.integers(0, 360)), saturation, lightness]
+                "hsl", [self.rng.uniform(0.0, 360.0), saturation, lightness]
             )
 
             rgb_coords = hsl_color.convert("srgb").coords()
@@ -159,9 +160,9 @@ class ImageRenderer:
 class CircleGenerator:
     DEFAULT_MID_RADIUS: float = 80.0
     DEFAULT_BASE_RADIUS: float = 3.0
-    VARIANCE_RADIUS = 0.25
+    VARIANCE_RADIUS = 0.4
     MAX_CIRCLE_COUNT = 3000
-    MAX_PLACEMENT_ATTEMPTS = 250
+    MAX_PLACEMENT_ATTEMPTS = 1000
 
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
         self.RNG = rng
@@ -180,11 +181,13 @@ class CircleGenerator:
         self, test_circle: Circle, circles: list[Circle]
     ) -> bool:
         for circle in circles:
+            if test_circle.color != circle.color:
+                continue
             distance_squared: int = (test_circle.x - circle.x) ** 2 + (
                 test_circle.y - circle.y
             ) ** 2
             radius_sum: int = test_circle.radius + circle.radius
-            if distance_squared < radius_sum**2 and test_circle.color == circle.color:
+            if distance_squared < radius_sum**2:
                 return True
         return False
 
@@ -195,6 +198,8 @@ class CircleGenerator:
         radius: int = int(self.RNG.integers(min_radius, max_radius))
         x: int = int(self.RNG.integers(0, self.config.width))
         y: int = int(self.RNG.integers(0, self.config.height))
+
+        
         color_index = self.RNG.choice(
             len(color_palette.colors), p=color_palette.weights
         )
