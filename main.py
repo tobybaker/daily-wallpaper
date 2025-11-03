@@ -210,8 +210,8 @@ class CircleGenerator:
         self, generate_index: int, circles: list[Circle], color_palette: ColorPalette
     ) -> Circle | None:
         placement_attempts: int = 0
+        new_circle = self.get_new_circle(generate_index, color_palette)
         while placement_attempts < self.MAX_PLACEMENT_ATTEMPTS:
-            new_circle = self.get_new_circle(generate_index, color_palette)
             placement_attempts += 1
             if not self.check_for_overlap_same_color(new_circle, circles):
                 return new_circle
