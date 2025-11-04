@@ -41,9 +41,15 @@ class ImageConfig:
         background_color: RGB background color tuple (r, g, b)
     """
 
-    width: int = 1080
-    height: int = 2400
-    background_color: tuple = (240, 240, 240)  # Light gray
+    def __init__(
+        self,
+        width: int = 1080,
+        height: int = 2400,
+        background_color: tuple = (240, 240, 240),  # Light gray
+    ):
+        self.width = width
+        self.height = height
+        self.background_color = background_color
 
     def __repr__(self):
         return (
@@ -63,6 +69,7 @@ class SeedGenerator:
     SEED_IMG_URL: str = "https://www.bbc.co.uk/news"
 
     def fetch_random_seed(self) -> int:
+        return self.fetch_seed_backup()
         try:
             return self.fetch_seed_from_web()
         except requests.RequestException:
@@ -126,9 +133,18 @@ class ArtworkGenerator:
     def __init__(self):
         seed = SeedGenerator().fetch_random_seed()
         self.rng = np.random.default_rng(seed)
+        self.background_color = self.generate_background_color()
+        
+        self.config = ImageConfig(background_color=self.background_color)
 
-        self.config = ImageConfig()  # New config class
+    def generate_background_color(self) -> tuple:
+        possible_colors = [
+            (240, 240, 240),  # Light gray
+            (255, 255, 255),  # White
+            (0, 0, 0),        # Black
+        ]
 
+        return possible_colors[self.rng.integers(0, len(possible_colors))]
     def generate(self) -> Image.Image:
         palette = ColorPaletteGenerator(self.rng).generate()
         circles = CircleGenerator(self.rng, self.config).generate(palette)
@@ -141,7 +157,7 @@ class ImageRenderer:
 
     def render(self, circles: list[Circle]) -> Image.Image:
         image = Image.new(
-            "RGB", (self.config.width, self.config.height), self.config.background_color
+            "RGB", (self.config.width, self.config.height), color=self.config.background_color
         )
         draw = ImageDraw.Draw(image)
 
@@ -158,11 +174,11 @@ class ImageRenderer:
 
 
 class CircleGenerator:
-    DEFAULT_MID_RADIUS: float = 80.0
-    DEFAULT_BASE_RADIUS: float = 3.0
-    VARIANCE_RADIUS = 0.4
-    MAX_CIRCLE_COUNT = 3000
-    MAX_PLACEMENT_ATTEMPTS = 1000
+    DEFAULT_MID_RADIUS: float = 85.0
+    DEFAULT_BASE_RADIUS: float = 5.0
+    VARIANCE_RADIUS = 0.5
+    MAX_CIRCLE_COUNT = 5000
+    MAX_PLACEMENT_ATTEMPTS = 10000
 
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
         self.RNG = rng
