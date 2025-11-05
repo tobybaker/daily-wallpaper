@@ -96,6 +96,10 @@ class ColorPaletteGenerator:
     MIN_SATURATION: float = 0.4
     MAX_SATURATION: float = 1.0
 
+    MIN_CONTRAST: float = 0.05  # Minimum contrast between colors
+
+    MAX_COLOR_GENERATION_ATTEMPTS: int = 10000
+
     def __init__(self, rng):
         self.rng = rng
 
@@ -107,11 +111,26 @@ class ColorPaletteGenerator:
         weights /= np.sum(weights)
         return weights.tolist()
 
+    def evaluate_color_contrast(self, color1: tuple, color2: tuple) -> float:
+        r_diff:float = abs(color1[0] - color2[0]) / 255.0
+        g_diff:float = abs(color1[1] - color2[1]) / 255.0
+        b_diff:float = abs(color1[2] - color2[2]) / 255.0
+        return max(r_diff, g_diff, b_diff)
+    
+    def test_sufficient_contrast(self, test_color: tuple, existing_colors: list[tuple]) -> bool:
+        for color in existing_colors:
+            contrast = self.evaluate_color_contrast(test_color, color)
+            
+            if contrast < self.MIN_CONTRAST:
+                return False
+        return True
+    
     def generate(self) -> ColorPalette:
         num_colors: int = int(self.rng.integers(self.MIN_COLORS, self.MAX_COLORS))
         colors: list[tuple] = []
 
-        for _ in range(num_colors):
+        n_attempts: int = 0
+        while len(colors) < num_colors:
             lightness: float = self.rng.uniform(self.MIN_LIGHTNESS, self.MAX_LIGHTNESS)
             saturation: float = self.rng.uniform(
                 self.MIN_SATURATION, self.MAX_SATURATION
@@ -122,8 +141,16 @@ class ColorPaletteGenerator:
 
             rgb_coords = hsl_color.convert("srgb").coords()
             rgb_tuple = tuple(int(c * 255) for c in rgb_coords)
-            colors.append(rgb_tuple)
-        weights = self.generate_weights(num_colors)
+            
+            if self.test_sufficient_contrast(rgb_tuple, colors):
+                colors.append(rgb_tuple)
+            
+            n_attempts += 1
+            
+            if n_attempts > self.MAX_COLOR_GENERATION_ATTEMPTS:
+                break 
+        
+        weights = self.generate_weights(len(colors))    
         color_palette = ColorPalette(colors=colors, weights=weights)
 
         return color_palette
@@ -138,13 +165,8 @@ class ArtworkGenerator:
         self.config = ImageConfig(background_color=self.background_color)
 
     def generate_background_color(self) -> tuple:
-        possible_colors = [
-            (240, 240, 240),  # Light gray
-            (255, 255, 255),  # White
-            (0, 0, 0),        # Black
-        ]
-
-        return possible_colors[self.rng.integers(0, len(possible_colors))]
+        shade = self.rng.integers(0, 255)
+        return (shade, shade, shade)
     def generate(self) -> Image.Image:
         palette = ColorPaletteGenerator(self.rng).generate()
         circles = CircleGenerator(self.rng, self.config).generate(palette)
@@ -177,6 +199,7 @@ class CircleGenerator:
     DEFAULT_MID_RADIUS: float = 85.0
     DEFAULT_BASE_RADIUS: float = 5.0
     VARIANCE_RADIUS = 0.5
+    MIN_CIRCLE_COUNT = 1000
     MAX_CIRCLE_COUNT = 5000
     MAX_PLACEMENT_ATTEMPTS = 10000
 
@@ -235,7 +258,11 @@ class CircleGenerator:
 
     def generate(self, color_palette: ColorPalette) -> list[Circle]:
         circles: list[Circle] = []
-        for generate_index in range(self.MAX_CIRCLE_COUNT):
+
+        n_potential_circles = self.RNG.integers(
+            self.MIN_CIRCLE_COUNT, self.MAX_CIRCLE_COUNT
+        )
+        for generate_index in range(n_potential_circles):
             placed_circle = self._try_place_circle(
                 generate_index, circles, color_palette=color_palette
             )
