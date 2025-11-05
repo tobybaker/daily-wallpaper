@@ -69,7 +69,7 @@ class SeedGenerator:
     SEED_IMG_URL: str = "https://www.bbc.co.uk/news"
 
     def fetch_random_seed(self) -> int:
-        return self.fetch_seed_backup()
+        
         try:
             return self.fetch_seed_from_web()
         except requests.RequestException:
@@ -78,7 +78,6 @@ class SeedGenerator:
     def fetch_seed_from_web(self) -> int:
         response = requests.get(self.SEED_IMG_URL)
         response.raise_for_status()
-
         content_hash = md5(response.content).hexdigest()
         
         return int(content_hash, 16) % np.iinfo(np.uint32).max
