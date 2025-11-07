@@ -73,7 +73,6 @@ class SeedGenerator:
     SEED_IMG_URL: str = "https://www.bbc.co.uk/news"
 
     def fetch_random_seed(self) -> int:
-        return self.fetch_seed_backup()
         try:
             return self.fetch_seed_from_web()
         except requests.RequestException:
@@ -288,7 +287,6 @@ class CircleGenerator:
             self.MIN_CIRCLE_COUNT, self.MAX_CIRCLE_COUNT
         )
         for generate_index in range(n_potential_circles):
-            print(generate_index, "/", n_potential_circles)
             placed_circle = self._try_place_circle(
                 generate_index, circles, color_palette=color_palette
             )
