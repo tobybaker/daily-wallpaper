@@ -63,13 +63,17 @@ class ColorPalette:
     colors: list[tuple]
     weights: list[float]
 
+    def get_random_color(self, rng: np.random.Generator) -> tuple:
+        color_index = rng.choice(len(self.colors), p=self.weights)
+        return self.colors[color_index]
+
 
 class SeedGenerator:
     # uses requests to get random seed from md5 of bbc
     SEED_IMG_URL: str = "https://www.bbc.co.uk/news"
 
     def fetch_random_seed(self) -> int:
-        
+        return self.fetch_seed_backup()
         try:
             return self.fetch_seed_from_web()
         except requests.RequestException:
@@ -90,12 +94,12 @@ class ColorPaletteGenerator:
     MIN_COLORS: int = 4
     MAX_COLORS: int = 10
 
-    MIN_LIGHTNESS: float = 0.4
-    MAX_LIGHTNESS: float = 0.6
+    MIN_LIGHTNESS: float = 0.3
+    MAX_LIGHTNESS: float = 0.7
     MIN_SATURATION: float = 0.4
     MAX_SATURATION: float = 1.0
 
-    MIN_CONTRAST: float = 0.05  # Minimum contrast between colors
+    MIN_CONTRAST: float = 0.15  # Minimum contrast between colors
 
     MAX_COLOR_GENERATION_ATTEMPTS: int = 10000
 
@@ -198,9 +202,12 @@ class CircleGenerator:
     DEFAULT_MID_RADIUS: float = 85.0
     DEFAULT_BASE_RADIUS: float = 5.0
     VARIANCE_RADIUS = 0.5
-    MIN_CIRCLE_COUNT = 1000
-    MAX_CIRCLE_COUNT = 5000
-    MAX_PLACEMENT_ATTEMPTS = 10000
+    MIN_CIRCLE_COUNT = 500
+    MAX_CIRCLE_COUNT = 2000
+    MAX_PLACEMENT_ATTEMPTS = 100
+
+    MAX_OVERLAP_SCORE = 3.0
+    SAME_COLOR_OVERLAP_MULTIPLIER = 5.0
 
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
         self.RNG = rng
@@ -215,22 +222,29 @@ class CircleGenerator:
         max_radius: int = int(mid_radius * (1 + self.VARIANCE_RADIUS))
         return min_radius, max_radius
 
-    def check_for_overlap_same_color(
+    def get_overlap_score(
         self, test_circle: Circle, circles: list[Circle]
-    ) -> bool:
+    ) -> float:
+        overlap_score = 0.0 
         for circle in circles:
-            if test_circle.color != circle.color:
-                continue
+            
             distance_squared: int = (test_circle.x - circle.x) ** 2 + (
                 test_circle.y - circle.y
             ) ** 2
             radius_sum: int = test_circle.radius + circle.radius
             if distance_squared < radius_sum**2:
-                return True
-        return False
+                overlap_score_increment:float = 1.0 - (distance_squared / (radius_sum**2))
+                if test_circle.color == circle.color:
+                    overlap_score_increment *= self.SAME_COLOR_OVERLAP_MULTIPLIER
+                overlap_score += overlap_score_increment
+                if overlap_score >= self.MAX_OVERLAP_SCORE:
+                    break
+        
+        return overlap_score
+        
 
     def get_new_circle(
-        self, generate_index: int, color_palette: ColorPalette
+        self, generate_index: int, color: tuple
     ) -> Circle:
         min_radius, max_radius = self.get_radius_range(generate_index)
         radius: int = int(self.RNG.integers(min_radius, max_radius))
@@ -238,22 +252,34 @@ class CircleGenerator:
         y: int = int(self.RNG.integers(0, self.config.height))
 
         
-        color_index = self.RNG.choice(
-            len(color_palette.colors), p=color_palette.weights
-        )
-        color = color_palette.colors[color_index]
+
         return Circle(x=x, y=y, radius=radius, color=color)
 
     def _try_place_circle(
         self, generate_index: int, circles: list[Circle], color_palette: ColorPalette
     ) -> Circle | None:
-        placement_attempts: int = 0
-        new_circle = self.get_new_circle(generate_index, color_palette)
-        while placement_attempts < self.MAX_PLACEMENT_ATTEMPTS:
-            placement_attempts += 1
-            if not self.check_for_overlap_same_color(new_circle, circles):
-                return new_circle
-        return None
+        
+        circle_store: list[Circle] = []
+        score_store: np.ndarray = np.zeros(self.MAX_PLACEMENT_ATTEMPTS)
+
+        chosen_color: tuple = color_palette.get_random_color(self.RNG)
+        for placement_index in range(self.MAX_PLACEMENT_ATTEMPTS):
+            new_circle = self.get_new_circle(generate_index, chosen_color)
+            overlap_score = self.get_overlap_score(new_circle, circles)
+            circle_store.append(new_circle)
+            score_store[placement_index] = overlap_score
+
+        score_store = np.where(score_store >= self.MAX_OVERLAP_SCORE, np.inf, score_store)
+        score_store = np.exp(-score_store)  # Lower scores get higher weights
+        total_score = np.sum(score_store)
+        if np.isclose(total_score, 0.0):
+            return None 
+        score_store /= total_score  
+        chosen_index = self.RNG.choice(
+            self.MAX_PLACEMENT_ATTEMPTS, p=score_store
+        )
+
+        return circle_store[chosen_index]
 
     def generate(self, color_palette: ColorPalette) -> list[Circle]:
         circles: list[Circle] = []
@@ -262,6 +288,7 @@ class CircleGenerator:
             self.MIN_CIRCLE_COUNT, self.MAX_CIRCLE_COUNT
         )
         for generate_index in range(n_potential_circles):
+            print(generate_index, "/", n_potential_circles)
             placed_circle = self._try_place_circle(
                 generate_index, circles, color_palette=color_palette
             )
