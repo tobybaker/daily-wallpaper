@@ -91,9 +91,9 @@ class SeedGenerator:
 
 class ColorPaletteGenerator:
     MIN_COLORS: int = 4
-    MAX_COLORS: int = 10
+    MAX_COLORS: int = 15
 
-    MIN_LIGHTNESS: float = 0.3
+    MIN_LIGHTNESS: float = 0.4
     MAX_LIGHTNESS: float = 0.7
     MIN_SATURATION: float = 0.4
     MAX_SATURATION: float = 1.0
@@ -198,14 +198,14 @@ class ImageRenderer:
 
 
 class CircleGenerator:
-    DEFAULT_MID_RADIUS: float = 85.0
+    DEFAULT_MID_RADIUS: float = 100.0
     DEFAULT_BASE_RADIUS: float = 5.0
     VARIANCE_RADIUS = 0.5
-    MIN_CIRCLE_COUNT = 500
-    MAX_CIRCLE_COUNT = 2000
-    MAX_PLACEMENT_ATTEMPTS = 100
+    MIN_CIRCLE_COUNT = 1000
+    MAX_CIRCLE_COUNT = 5000
+    MAX_PLACEMENT_ATTEMPTS = 1000
 
-    MAX_OVERLAP_SCORE = 3.0
+    MAX_OVERLAP_SCORE = 4.0
     SAME_COLOR_OVERLAP_MULTIPLIER = 5.0
 
     def __init__(self, rng: np.random.Generator, config: ImageConfig):
@@ -274,6 +274,7 @@ class CircleGenerator:
         if np.isclose(total_score, 0.0):
             return None 
         score_store /= total_score  
+        
         chosen_index = self.RNG.choice(
             self.MAX_PLACEMENT_ATTEMPTS, p=score_store
         )
